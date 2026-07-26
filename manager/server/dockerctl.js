@@ -22,7 +22,7 @@ const dockerctl = {
   },
 
   async composeUp(server, forceRecreate = false) {
-    const args = ['compose', '-f', server.composeFile, '-p', server.composeProject, 'up', '-d'];
+    const args = ['compose', '-f', server.composeFile, '-p', server.composeProject, 'up', '-d', server.serviceName];
     if (forceRecreate) args.push('--force-recreate');
     return run('docker', args, 600000);
   },
@@ -30,11 +30,11 @@ const dockerctl = {
   // `stop` (not `down`) keeps the container so it shows as "exited" and can be
   // started again; -t 60 gives the game server time to shut down cleanly.
   async composeStop(server) {
-    return run('docker', ['compose', '-f', server.composeFile, '-p', server.composeProject, 'stop', '-t', '60'], 300000);
+    return run('docker', ['compose', '-f', server.composeFile, '-p', server.composeProject, 'stop', '-t', '60', server.serviceName], 300000);
   },
 
   async composeRestart(server) {
-    return run('docker', ['compose', '-f', server.composeFile, '-p', server.composeProject, 'restart', '-t', '60'], 600000);
+    return run('docker', ['compose', '-f', server.composeFile, '-p', server.composeProject, 'restart', '-t', '60', server.serviceName], 600000);
   },
 
   async containerEnv(name) {
