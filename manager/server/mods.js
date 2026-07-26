@@ -461,6 +461,28 @@ async function installFromWorkshop(server, publishedFileId) {
     const missingDependencies = dependencies.filter((dep) => !installedPkgs.has(dep));
     const destDir = `${OFFICIAL_MODS_DIR}/Workshop/${publishedFileId}`;
     await dockerctl.exec(c, ['sh', '-c', `rm -rf ${q(destDir)} && mkdir -p ${q(destDir)} && cp -r ${q(modRoot)}/. ${q(destDir)}/ && rm -rf '${tmp}'`]);
+    // Deploy InstallRule targets to runtime paths — the game's official mod
+    // loader under Wine routinely skips the copy for Lua/PalSchema mods.
+    if (packageName) {
+      try {
+        const deployInfo = JSON.parse(await dockerctl.exec(c, ['cat', `${destDir}/Info.json`]));
+        if (Array.isArray(deployInfo.InstallRule)) {
+          for (const rule of deployInfo.InstallRule) {
+            const targets = Array.isArray(rule.Targets) ? rule.Targets : [];
+            for (const target of targets) {
+              const src = `${destDir}/${target.replace(/^\.\//, '')}`;
+              let dst;
+              if (rule.Type === 'Lua') dst = `${OFFICIAL_MODS_DIR}/NativeMods/UE4SS/Mods/${packageName}`;
+              else if (rule.Type === 'PalSchema') dst = `${OFFICIAL_MODS_DIR}/NativeMods/UE4SS/Mods/PalSchema/mods/${packageName}`;
+              else if (rule.Type === 'Paks' || rule.Type === 'ModelReplacement') dst = `/palworld/Pal/Content/Paks/~WorkshopMods/${packageName}`;
+              else if (rule.Type === 'LogicMods') dst = `/palworld/Pal/Content/Paks/LogicMods/${packageName}`;
+              else continue;
+              await dockerctl.exec(c, ['sh', '-c', `rm -rf ${q(dst)} && mkdir -p ${q(dst)} && cp -r ${q(src)}/. ${q(dst)}/`]).catch(() => {});
+            }
+          }
+        }
+      } catch { /* Info.json not readable — skip runtime deploy */ }
+    }
     const ini = `${OFFICIAL_MODS_DIR}/PalModSettings.ini`;
     await dockerctl.exec(c, ['sh', '-c', `
       touch ${q(ini)}

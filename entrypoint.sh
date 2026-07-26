@@ -164,8 +164,25 @@ if [ -n "${WORKSHOP_MODS:-}" ]; then
   if [ -n "$ACCT_FILE" ]; then
     SUSER=$(sed -n 's/.*"LoginTokens"[^{]*{[^"]*"\([^"]*\)".*/\1/p' "$ACCT_FILE" | head -1)
   fi
+  # Deploy an official mod from its Workshop/<id> directory to runtime paths.
+  # The game's official loader under Wine routinely skips this copy.
+  deploy_workshop_mod() {
+    local D="$1" P="$2"
+    [ -z "$P" ] && return 0
+    [ -d "$D/Scripts" ]    && { local T="$EXE_DIR/Mods/NativeMods/UE4SS/Mods/$P"; rm -rf "$T" && mkdir -p "$T" && cp -r "$D/Scripts/." "$T/" || true; }
+    [ -d "$D/PalSchema" ]  && { local T="$EXE_DIR/Mods/NativeMods/UE4SS/Mods/PalSchema/mods/$P"; rm -rf "$T" && mkdir -p "$T" && cp -r "$D/PalSchema/." "$T/" || true; }
+    [ -d "$D/Paks" ]       && { local T="$SERVER_DIR/Pal/Content/Paks/~WorkshopMods/$P"; rm -rf "$T" && mkdir -p "$T" && find "$D/Paks" -type f \( -name '*.pak' -o -name '*.utoc' -o -name '*.ucas' \) -exec cp {} "$T/" \; || true; }
+    [ -d "$D/LogicMods" ]  && { local T="$SERVER_DIR/Pal/Content/Paks/LogicMods/$P"; rm -rf "$T" && mkdir -p "$T" && find "$D/LogicMods" -type f \( -name '*.pak' -o -name '*.utoc' -o -name '*.ucas' \) -exec cp {} "$T/" \; || true; }
+  }
   for MODID in $(echo "$WORKSHOP_MODS" | tr ',' ' '); do
-    if [ -d "$EXE_DIR/Mods/Workshop/$MODID" ] || [ -d "$SERVER_DIR/Pal/Content/Paks/~mods/$MODID" ]; then
+    if [ -d "$EXE_DIR/Mods/Workshop/$MODID" ]; then
+      # Already on disk — just re-deploy to runtime paths in case the game's
+      # loader skipped the copy on a previous boot.
+      PKG=$(sed -n 's/.*"PackageName"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$EXE_DIR/Mods/Workshop/$MODID/Info.json" 2>/dev/null | head -1 || true)
+      deploy_workshop_mod "$EXE_DIR/Mods/Workshop/$MODID" "$PKG"
+      continue
+    fi
+    if [ -d "$SERVER_DIR/Pal/Content/Paks/~mods/$MODID" ]; then
       continue
     fi
     if [ -z "$SUSER" ]; then
@@ -181,6 +198,7 @@ if [ -n "${WORKSHOP_MODS:-}" ]; then
         DEST="$EXE_DIR/Mods/Workshop/$MODID"
         mkdir -p "$DEST" && cp -r "$(dirname "$INFO")/." "$DEST/"
         PKG=$(sed -n 's/.*"PackageName"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$INFO" | head -1)
+        deploy_workshop_mod "$DEST" "$PKG"
         INIF="$EXE_DIR/Mods/PalModSettings.ini"
         touch "$INIF"
         if ! grep -q "bGlobalEnableMod=" "$INIF"; then echo "bGlobalEnableMod=True" >> "$INIF"; fi
