@@ -173,6 +173,7 @@ if [ -n "${WORKSHOP_MODS:-}" ]; then
     [ -d "$D/PalSchema" ]  && { local T="$EXE_DIR/Mods/NativeMods/UE4SS/Mods/PalSchema/mods/$P"; rm -rf "$T" && mkdir -p "$T" && cp -r "$D/PalSchema/." "$T/" || true; }
     [ -d "$D/Paks" ]       && { local T="$SERVER_DIR/Pal/Content/Paks/~WorkshopMods/$P"; rm -rf "$T" && mkdir -p "$T" && find "$D/Paks" -type f \( -name '*.pak' -o -name '*.utoc' -o -name '*.ucas' \) -exec cp {} "$T/" \; || true; }
     [ -d "$D/LogicMods" ]  && { local T="$SERVER_DIR/Pal/Content/Paks/LogicMods/$P"; rm -rf "$T" && mkdir -p "$T" && find "$D/LogicMods" -type f \( -name '*.pak' -o -name '*.utoc' -o -name '*.ucas' \) -exec cp {} "$T/" \; || true; }
+    return 0
   }
   for MODID in $(echo "$WORKSHOP_MODS" | tr ',' ' '); do
     if [ -d "$EXE_DIR/Mods/Workshop/$MODID" ]; then
